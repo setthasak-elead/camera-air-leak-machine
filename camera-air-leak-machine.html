@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera Air Leak Machine - Control System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;600;700;800;900&family=Share+Tech+Mono&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-dark:       #050c1a;
+    --bg-panel:      #0a1628;
+    --bg-card:       #0d1f3c;
+    --bg-inner:      #091525;
+    --blue-mid:      #0e2d55;
+    --blue-bright:   #1a4a8a;
+    --blue-accent:   #1e6abf;
+    --cyan-glow:     #00c8ff;
+    --cyan-dim:      #0090cc;
+    --gold:          #f0c020;
+    --gold-dark:     #c08800;
+    --gold-light:    #ffe060;
+    --green-ok:      #00ff88;
+    --red-stop:      #ff2020;
+    --white:         #e8f4ff;
+    --panel-border:  rgba(0,180,255,0.35);
+    --panel-glow:    rgba(0,180,255,0.12);
+    --step-bg:       #0b1e3d;
+    --step-border:   rgba(0,160,240,0.5);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg-dark);
+    font-family: 'Rajdhani', sans-serif;
+    color: var(--white);
+    overflow: hidden;
+  }
+
+  /* ── WRAPPER ── */
+  .app {
+    display: flex; flex-direction: column;
+    width: 100vw; height: 100vh;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,100,200,0.18) 0%, transparent 70%),
+      linear-gradient(180deg, #060e1e 0%, #050c1a 100%);
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(180deg, #0a1830 0%, #061020 100%);
+    border-bottom: 2px solid rgba(0,180,255,0.4);
+    padding: 0 18px;
+    height: 64px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .header::after {
+    content:''; position:absolute; bottom:-4px; left:0; right:0;
+    height:2px; background:linear-gradient(90deg,transparent,var(--cyan-glow),transparent);
+  }
+
+  .header-left { display:flex; align-items:center; gap:12px; }
+  .header-logo {
+    width:44px; height:44px; border-radius:50%;
+    background: linear-gradient(135deg,#0a2050,#1a4a9a);
+    border: 2px solid var(--cyan-dim);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 0 12px rgba(0,160,255,0.4);
+  }
+  .header-logo svg { width:24px; height:24px; }
+  .header-brand { line-height:1.1; }
+  .header-brand .name {
+    font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700;
+    color:var(--cyan-glow); letter-spacing:2px;
+  }
+  .header-brand .sub {
+    font-size:9px; color:rgba(180,220,255,0.55); letter-spacing:3px; text-transform:uppercase;
+  }
+
+  .header-title {
+    font-family:'Orbitron',sans-serif;
+    font-size:clamp(16px,2.2vw,26px);
+    font-weight:900; letter-spacing:4px;
+    background: linear-gradient(180deg,#ffffff 0%,var(--cyan-glow) 60%,var(--blue-accent) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    text-shadow: none;
+    position:absolute; left:50%; transform:translateX(-50%);
+    white-space:nowrap;
+  }
+
+  .header-right { display:flex; align-items:center; gap:16px; }
+  .header-datetime {
+    text-align:right; font-family:'Share Tech Mono',monospace;
+    line-height:1.3;
+  }
+  .header-datetime .hdate { font-size:11px; color:rgba(180,220,255,0.7); letter-spacing:1px; }
+  .header-datetime .htime { font-size:15px; color:var(--cyan-glow); font-weight:700; letter-spacing:2px; }
+
+  .admin-badge {
+    display:flex; align-items:center; gap:8px;
+    background:linear-gradient(135deg,#0a1e40,#0d2550);
+    border:1px solid rgba(0,160,255,0.35);
+    border-radius:6px; padding:6px 12px;
+  }
+  .admin-avatar {
+    width:28px; height:28px; border-radius:50%;
+    background:linear-gradient(135deg,#1a4a9a,#2060d0);
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+  }
+  .admin-avatar::after {
+    content:''; position:absolute; bottom:0; right:0;
+    width:8px; height:8px; border-radius:50%;
+    background:var(--green-ok); border:1.5px solid var(--bg-card);
+  }
+  .admin-info { line-height:1.2; }
+  .admin-info .aname { font-size:11px; font-weight:700; color:var(--white); letter-spacing:1px; }
+  .admin-info .arole { font-size:9px; color:rgba(180,220,255,0.55); letter-spacing:1px; }
+
+  /* ── BODY ── */
+  .body {
+    display:flex; flex:1; overflow:hidden;
+    padding:14px 14px 0 14px;
+    gap:14px;
+  }
+
+  /* ── MAIN PANEL ── */
+  .main-panel {
+    flex:1; display:flex; flex-direction:column;
+    background:linear-gradient(180deg,rgba(14,40,90,0.6) 0%,rgba(8,20,50,0.8) 100%);
+    border:1.5px solid var(--panel-border);
+    border-radius:10px;
+    box-shadow: 0 0 30px var(--panel-glow), inset 0 0 40px rgba(0,60,150,0.08);
+    overflow:hidden;
+  }
+
+  /* ── PARAM BAR ── */
+  .param-bar {
+    display:flex; align-items:center;
+    background:linear-gradient(90deg,#0e2a58,#071428);
+    border-bottom:1px solid rgba(0,160,255,0.25);
+    padding:10px 16px;
+    gap:10px;
+    flex-shrink:0;
+  }
+  .param-gear {
+    width:28px; height:28px;
+    background:linear-gradient(135deg,#1a50b0,#0a2a70);
+    border:1px solid rgba(0,180,255,0.4);
+    border-radius:4px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .param-label {
+    font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700;
+    color:var(--gold); letter-spacing:3px;
+  }
+
+  /* ── PROCESS FLOW ── */
+  .process-area {
+    flex:1; display:flex; flex-direction:column;
+    padding:18px 20px 14px;
+    gap:16px;
+    overflow:hidden;
+  }
+
+  .flow-row {
+    display:flex; align-items:center; justify-content:center;
+    gap:0;
+    flex-shrink:0;
+  }
+
+  .flow-step {
+    display:flex; flex-direction:column; align-items:center;
+    position:relative;
+  }
+
+  /* stop-hand icon above steps 3-6 */
+  .stop-icon {
+    width:38px; height:38px; margin-bottom:6px;
+  }
+  .stop-icon-placeholder { width:38px; height:38px; margin-bottom:6px; }
+
+  /* step circle */
+  .step-circle {
+    width:88px; height:88px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+    flex-shrink:0;
+  }
+  .step-circle.active {
+    background:radial-gradient(circle,#2a6a20 0%,#1a4a10 50%,#0e2808 100%);
+    border:3px solid var(--gold);
+    box-shadow:0 0 20px rgba(240,192,32,0.5);
+  }
+  .step-circle.inactive {
+    background:radial-gradient(circle,#1a3060 0%,#0e2040 50%,#080e28 100%);
+    border:3px solid #1a5090;
+    box-shadow:0 0 10px rgba(0,100,200,0.3);
+  }
+  .step-circle.judgement {
+    background:radial-gradient(circle,#e8a800 0%,#c07800 40%,#804800 100%);
+    border:3px solid var(--gold-light);
+    box-shadow:0 0 25px rgba(240,192,32,0.7);
+    width:84px; height:84px;
+  }
+  .step-circle img { width:60%; height:60%; object-fit:contain; }
+
+  /* arrow */
+  .flow-arrow {
+    width:36px; height:16px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:28px;
+  }
+  .flow-arrow svg { width:100%; }
+
+  /* step label */
+  .step-label {
+    margin-top:8px; text-align:center;
+    font-size:10px; font-weight:600; letter-spacing:0.5px;
+    line-height:1.3; color:rgba(200,230,255,0.85);
+    max-width:90px;
+  }
+  .step-label .step-num {
+    color:var(--gold); font-weight:700; margin-right:3px;
+    font-family:'Share Tech Mono',monospace;
+  }
+
+  /* ── PARAMS GRID ── */
+  .params-grid {
+    display:grid;
+    grid-template-columns: repeat(4,1fr);
+    gap:12px;
+    padding: 0 6px;
+    flex-shrink:0;
+  }
+
+  .param-col { display:flex; flex-direction:column; gap:8px; }
+
+  .param-field {
+    display:flex; flex-direction:column; align-items:center;
+    background:linear-gradient(180deg,#0a1e40,#061430);
+    border:1px solid rgba(0,140,220,0.4);
+    border-radius:5px;
+    padding:5px 8px;
+  }
+  .param-field-label {
+    font-size:9px; font-weight:700; letter-spacing:1.5px;
+    color:rgba(180,210,255,0.75);
+    margin-bottom:3px;
+  }
+  .param-field-value {
+    font-family:'Share Tech Mono',monospace;
+    font-size:22px; font-weight:700;
+    color:var(--white);
+    letter-spacing:1px;
+    line-height:1;
+  }
+  .param-field-value.result { color:var(--green-ok); }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width:190px; flex-shrink:0;
+    display:flex; flex-direction:column;
+    gap:0;
+  }
+
+  .sidebar-card {
+    background:linear-gradient(180deg,rgba(14,40,90,0.7),rgba(8,20,50,0.9));
+    border:1.5px solid var(--panel-border);
+    border-radius:10px;
+    overflow:hidden;
+  }
+
+  .sidebar-title {
+    background:linear-gradient(90deg,#1a4a9a,#0a2a60);
+    padding:10px 14px;
+    font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700;
+    color:var(--gold); letter-spacing:2px;
+    border-bottom:1px solid rgba(0,180,255,0.3);
+  }
+
+  .sidebar-fields { padding:14px 12px; display:flex; flex-direction:column; gap:12px; }
+
+  .sf-group { display:flex; flex-direction:column; gap:4px; }
+  .sf-label {
+    font-size:10px; font-weight:700; letter-spacing:1.5px;
+    color:rgba(180,210,255,0.65);
+  }
+  .sf-input {
+    background:linear-gradient(180deg,#0a1e40,#061430);
+    border:1px solid rgba(0,140,220,0.4);
+    border-radius:4px;
+    padding:7px 10px;
+    font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:600;
+    color:var(--white);
+    width:100%;
+    outline:none;
+  }
+  .sf-input:focus { border-color:var(--cyan-glow); box-shadow:0 0 8px rgba(0,200,255,0.25); }
+
+  .mes-toggle { display:flex; gap:0; border-radius:4px; overflow:hidden; }
+  .mes-btn {
+    flex:1; padding:6px 0;
+    font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:700;
+    letter-spacing:1px; cursor:pointer;
+    border:none; outline:none;
+    transition:all 0.2s;
+  }
+  .mes-btn.on.active {
+    background:linear-gradient(135deg,#e0a000,#c07000);
+    color:#000; border:1px solid var(--gold);
+  }
+  .mes-btn.on.inactive {
+    background:#0a1830; color:rgba(255,255,255,0.3);
+    border:1px solid rgba(0,100,200,0.2);
+  }
+  .mes-btn.off.active {
+    background:linear-gradient(135deg,#400000,#200000);
+    color:rgba(255,200,200,0.8);
+    border:1px solid rgba(200,0,0,0.4);
+  }
+  .mes-btn.off.inactive {
+    background:#0a1830; color:rgba(255,255,255,0.3);
+    border:1px solid rgba(0,100,200,0.2);
+  }
+
+  .inspection-area {
+    min-height:40px;
+    background:linear-gradient(180deg,#0a1e40,#061430);
+    border:1px solid rgba(0,140,220,0.3);
+    border-radius:4px;
+    padding:6px 8px;
+    font-size:11px; color:rgba(180,210,255,0.5);
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    display:flex; align-items:center;
+    background:linear-gradient(90deg,#060e20,#0a1628,#060e20);
+    border-top:1.5px solid rgba(0,160,255,0.25);
+    padding:10px 16px;
+    gap:16px;
+    height:56px; flex-shrink:0;
+  }
+
+  .reset-btn {
+    display:flex; align-items:center; gap:8px;
+    background:linear-gradient(135deg,#c08000,#886000,#c08000);
+    border:2px solid var(--gold);
+    border-radius:6px;
+    padding:8px 18px;
+    cursor:pointer;
+    font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700;
+    color:#000; letter-spacing:2px;
+    box-shadow:0 0 15px rgba(240,192,32,0.4);
+    transition:all 0.2s;
+    flex-shrink:0;
+  }
+  .reset-btn:hover {
+    background:linear-gradient(135deg,#e0a000,#a07000,#e0a000);
+    box-shadow:0 0 25px rgba(240,192,32,0.6);
+  }
+  .reset-btn svg { animation: spin 3s linear infinite; }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+  .status-box {
+    display:flex; align-items:center; gap:8px;
+    background:linear-gradient(180deg,#0a1e40,#061430);
+    border:1px solid rgba(0,160,255,0.3);
+    border-radius:6px; padding:6px 16px;
+    flex-shrink:0;
+  }
+  .status-label { font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:700; color:rgba(180,210,255,0.6); letter-spacing:2px; }
+  .status-value { font-family:'Orbitron',sans-serif; font-size:14px; font-weight:700; color:var(--green-ok); letter-spacing:3px; }
+
+  .progress-bar-container {
+    flex:1; height:24px;
+    background:linear-gradient(180deg,#0a1e40,#061430);
+    border:1px solid rgba(0,160,255,0.3);
+    border-radius:4px; overflow:hidden;
+    position:relative;
+  }
+  .progress-bar-fill {
+    height:100%; width:53%;
+    background:linear-gradient(90deg,#c08000,#e0a800,#f0c030,#e0a800,#c08000);
+    background-size:200% 100%;
+    animation:shimmer 2s linear infinite;
+    border-radius:4px;
+    position:relative;
+  }
+  @keyframes shimmer {
+    0%{background-position:200% 0}
+    100%{background-position:-200% 0}
+  }
+  .progress-bar-fill::after {
+    content:''; position:absolute; right:0; top:0; bottom:0; width:4px;
+    background:rgba(255,255,255,0.5);
+    box-shadow: 0 0 8px rgba(255,220,100,0.8);
+  }
+  .progress-pct {
+    font-family:'Orbitron',sans-serif; font-size:16px; font-weight:700;
+    color:var(--gold); letter-spacing:1px;
+    flex-shrink:0;
+  }
+
+  /* ── STOP HAND SVG ── */
+  .stop-hand { color: var(--red-stop); }
+
+  /* ── STEP ICON SVGS ── */
+  .step-icon-svg { width:48%; height:48%; }
+
+  /* Pulse animation for active step */
+  .step-circle.active::before {
+    content:''; position:absolute; inset:-5px; border-radius:50%;
+    border:2px solid rgba(240,192,32,0.3);
+    animation: pulse-ring 2s ease-out infinite;
+  }
+  @keyframes pulse-ring {
+    0%{transform:scale(1);opacity:0.6}
+    100%{transform:scale(1.2);opacity:0}
+  }
+
+  /* judgement pulse */
+  .step-circle.judgement::before {
+    content:''; position:absolute; inset:-5px; border-radius:50%;
+    border:2px solid rgba(240,192,32,0.4);
+    animation: pulse-ring 1.5s ease-out infinite;
+  }
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="header-logo">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C10.34 2 9 3.34 9 5C9 5.74 9.28 6.41 9.73 6.92L6.11 10.54C5.61 10.2 5.02 10 4.38 10C2.5 10 1 11.5 1 13.38C1 15.26 2.5 16.76 4.38 16.76C6.26 16.76 7.76 15.26 7.76 13.38C7.76 12.74 7.56 12.15 7.22 11.65L10.84 8.03C11.19 8.21 11.58 8.3 12 8.3C13.66 8.3 15 6.96 15 5.3C15 3.64 13.66 2 12 2Z" fill="#00c8ff"/>
+          <circle cx="12" cy="5" r="2.5" fill="#1e6abf"/>
+          <circle cx="12" cy="19" r="3" fill="#1e6abf" stroke="#00c8ff" stroke-width="1.5"/>
+          <path d="M12 8V16" stroke="#00c8ff" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="header-brand">
+        <div class="name">CAMERA AIR LEAK MACHINE</div>
+        <div class="sub">CONTROL SYSTEM</div>
+      </div>
+    </div>
+
+    <h1 class="header-title">CAMERA AIR LEAK MACHINE</h1>
+
+    <div class="header-right">
+      <div class="header-datetime">
+        <div class="hdate" id="hdate">15 MAY 2025</div>
+        <div class="htime" id="htime">10:24:30</div>
+      </div>
+      <div class="admin-badge">
+        <div class="admin-avatar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#a0c8ff"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v2h20v-2c0-3.3-6.7-5-10-5z"/></svg>
+        </div>
+        <div class="admin-info">
+          <div class="aname">ADMIN ▾</div>
+          <div class="arole">Administrator</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- MAIN PANEL -->
+    <div class="main-panel">
+
+      <!-- PARAM SETTING BAR -->
+      <div class="param-bar">
+        <div class="param-gear">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#f0c020">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.6l2.03 1.58c-.05.3-.09.63-.09.95s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.6l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          </svg>
+        </div>
+        <span class="param-label">PARAMETER SETTING</span>
+      </div>
+
+      <!-- PROCESS AREA -->
+      <div class="process-area">
+
+        <!-- FLOW ROW -->
+        <div class="flow-row">
+
+          <!-- Step 01: QR Scanner -->
+          <div class="flow-step">
+            <div class="stop-icon-placeholder"></div>
+            <div class="step-circle active">
+              <!-- QR / barcode scanner icon -->
+              <svg class="step-icon-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="6" y="6" width="22" height="22" rx="2" stroke="#f0c020" stroke-width="3" fill="none"/>
+                <rect x="12" y="12" width="10" height="10" fill="#f0c020"/>
+                <rect x="36" y="6" width="22" height="22" rx="2" stroke="#00c8ff" stroke-width="3" fill="none"/>
+                <rect x="42" y="12" width="10" height="10" fill="#00c8ff"/>
+                <rect x="6" y="36" width="22" height="22" rx="2" stroke="#00c8ff" stroke-width="3" fill="none"/>
+                <rect x="12" y="42" width="10" height="10" fill="#00c8ff"/>
+                <rect x="36" y="36" width="5" height="5" fill="#00c8ff"/>
+                <rect x="45" y="36" width="5" height="5" fill="#00c8ff"/>
+                <rect x="36" y="45" width="5" height="5" fill="#00c8ff"/>
+                <rect x="45" y="45" width="13" height="13" rx="1" fill="#ff4040"/>
+              </svg>
+            </div>
+            <div class="step-label"><span class="step-num">01</span>QR SCANNER<br>S/N READING</div>
+          </div>
+
+          <div class="flow-arrow">
+            <svg viewBox="0 0 36 16" fill="none"><path d="M0 8H30M24 2L32 8L24 14" stroke="#f0c020" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+
+          <!-- Step 02: Camera -->
+          <div class="flow-step">
+            <div class="stop-icon-placeholder"></div>
+            <div class="step-circle inactive">
+              <svg class="step-icon-svg" viewBox="0 0 64 64" fill="none">
+                <rect x="4" y="14" width="40" height="30" rx="4" stroke="#1e6abf" stroke-width="3" fill="#0a1828"/>
+                <rect x="10" y="20" width="28" height="18" rx="2" fill="#0d2a4a"/>
+                <rect x="10" y="20" width="28" height="18" rx="2" stroke="#00c8ff" stroke-width="1.5" fill="none"/>
+                <circle cx="24" cy="29" r="5" stroke="#00c8ff" stroke-width="2" fill="#061020"/>
+                <circle cx="24" cy="29" r="2" fill="#00c8ff" opacity="0.7"/>
+                <rect x="44" y="22" width="16" height="10" rx="2" stroke="#1e6abf" stroke-width="2.5" fill="#0a1828"/>
+                <rect x="8" y="10" width="8" height="4" rx="1" fill="#1e6abf"/>
+                <rect x="8" y="44" width="40" height="3" rx="1" fill="#0a1a38"/>
+              </svg>
+            </div>
+            <div class="step-label"><span class="step-num">02</span>CAMERA<br>PUT ON THE JIG</div>
+          </div>
+
+          <div class="flow-arrow">
+            <svg viewBox="0 0 36 16" fill="none"><path d="M0 8H30M24 2L32 8L24 14" stroke="#f0c020" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+
+          <!-- Step 03: Checking Main Air Pressure -->
+          <div class="flow-step">
+            <!-- STOP HAND -->
+            <div class="stop-icon">
+              <svg viewBox="0 0 38 38" fill="none">
+                <circle cx="19" cy="19" r="17" fill="#cc0000" stroke="#ff4444" stroke-width="2"/>
+                <text x="19" y="25" text-anchor="middle" font-size="20" fill="white">✋</text>
+              </svg>
+            </div>
+            <div class="step-circle inactive">
+              <!-- Pressure gauge -->
+              <svg class="step-icon-svg" viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="36" r="22" fill="#0a1828" stroke="#1e6abf" stroke-width="3"/>
+                <circle cx="32" cy="36" r="16" fill="#061020" stroke="#00c8ff" stroke-width="1.5"/>
+                <path d="M18 44 A16 16 0 1 1 46 44" stroke="#1e6abf" stroke-width="2" fill="none"/>
+                <path d="M20 43 A14 14 0 0 1 44 43" stroke="rgba(0,200,255,0.3)" stroke-width="6" fill="none"/>
+                <path d="M20 43 A14 14 0 0 1 35 22" stroke="#00ff88" stroke-width="6" fill="none" stroke-linecap="round"/>
+                <line x1="32" y1="36" x2="26" y2="22" stroke="#ff4040" stroke-width="2.5" stroke-linecap="round"/>
+                <circle cx="32" cy="36" r="3" fill="#00c8ff"/>
+                <rect x="28" y="6" width="8" height="10" rx="2" fill="#1e6abf"/>
+              </svg>
+            </div>
+            <div class="step-label"><span class="step-num">03</span>CHECKING<br>MAIN AIR PRESSURE</div>
+          </div>
+
+          <div class="flow-arrow">
+            <svg viewBox="0 0 36 16" fill="none"><path d="M0 8H30M24 2L32 8L24 14" stroke="#f0c020" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+
+          <!-- Step 04: Cylinder Down -->
+          <div class="flow-step">
+            <div class="stop-icon">
+              <svg viewBox="0 0 38 38" fill="none">
+                <circle cx="19" cy="19" r="17" fill="#cc0000" stroke="#ff4444" stroke-width="2"/>
+                <text x="19" y="25" text-anchor="middle" font-size="20" fill="white">✋</text>
+              </svg>
+            </div>
+            <div class="step-circle inactive">
+              <svg class="step-icon-svg" viewBox="0 0 64 64" fill="none">
+                <rect x="26" y="4" width="12" height="30" rx="3" fill="#1e6abf" stroke="#00c8ff" stroke-width="1.5"/>
+                <rect x="20" y="32" width="24" height="20" rx="3" fill="#0a1828" stroke="#1e6abf" stroke-width="2"/>
+                <line x1="32" y1="34" x2="32" y2="46" stroke="#00c8ff" stroke-width="2" stroke-dasharray="3 2"/>
+                <path d="M26 52 L32 60 L38 52" fill="#f0c020"/>
+              </svg>
+            </div>
+            <div class="step-label"><span class="step-num">04</span>CYLINDER DOWN<br>[ AIR PRESSURE ]</div>
+          </div>
+
+          <div class="flow-arrow">
+            <svg viewBox="0 0 36 16" fill="none"><path d="M0 8H30M24 2L32 8L24 14" stroke="#f0c020" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+
+          <!-- Step 05: Air Leak Test -->
+          <div class="flow-step">
+            <div class="stop-icon">
+              <svg viewBox="0 0 38 38" fill="none">
+                <circle cx="19" cy="19" r="17" fill="#cc0000" stroke="#ff4444" stroke-width="2"/>
+                <text x="19" y="25" text-anchor="middle" font-size="20" fill="white">✋</text>
+              </svg>
+            </div>
+            <div class="step-circle inactive">
+              <svg class="step-icon-svg" viewBox="0 0 64 64" fill="none">
+                <rect x="8" y="20" width="48" height="30" rx="4" fill="#0a1828" stroke="#1e6abf" stroke-width="2"/>
+                <rect x="12" y="24" width="40" height="22" rx="2" fill="#061020"/>
+                <line x1="12" y1="32" x2="52" y2="32" stroke="#00c8ff" stroke-width="1" opacity="0.4"/>
+                <line x1="12" y1="38" x2="52" y2="38" stroke="#00c8ff" stroke-width="1" opacity="0.4"/>
+                <line x1="20" y1="24" x2="20" y2="46" stroke="#00c8ff" stroke-width="1" opacity="0.4"/>
+                <path d="M12 42 L22 30 L32 36 L42 28 L52 35" stroke="#00ff88" stroke-width="2" fill="none" stroke-linecap="round"/>
+                <rect x="24" y="10" width="16" height="10" rx="2" fill="#1e6abf" stroke="#00c8ff" stroke-width="1.5"/>
+                <rect x="14" y="18" width="6" height="4" rx="1" fill="#ff4040"/>
+              </svg>
+            </div>
+            <div class="step-label"><span class="step-num">05</span>AIR LEAK TEST<br>[ CHECK ]</div>
+          </div>
+
+          <div class="flow-arrow">
+            <svg viewBox="0 0 36 16" fill="none"><path d="M0 8H30M24 2L32 8L24 14" stroke="#f0c020" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+
+          <!-- Step 06: Cylinder Up -->
+          <div class="flow-step">
+            <div class="stop-icon">
+              <svg viewBox="0 0 38 38" fill="none">
+                <circle cx="19" cy="19" r="17" fill="#cc0000" stroke="#ff4444" stroke-width="2"/>
+                <text x="19" y="25" text-anchor="middle" font-size="20" fill="white">✋</text>
+              </svg>
+            </div>
+            <div class="step-circle inactive">
+              <svg class="step-icon-svg" viewBox="0 0 64 64" fill="none">
+                <rect x="26" y="30" width="12" height="30" rx="3" fill="#1e6abf" stroke="#00c8ff" stroke-width="1.5"/>
+                <rect x="20" y="12" width="24" height="20" rx="3" fill="#0a1828" stroke="#1e6abf" stroke-width="2"/>
+                <line x1="32" y1="18" x2="32" y2="30" stroke="#00c8ff" stroke-width="2" stroke-dasharray="3 2"/>
+                <path d="M26 12 L32 4 L38 12" fill="#f0c020"/>
+              </svg>
+            </div>
+            <div class="step-label"><span class="step-num">05</span>CYLINDER UP<br>[ AIR PRESSURE ]</div>
+          </div>
+
+          <div class="flow-arrow">
+            <svg viewBox="0 0 36 16" fill="none"><path d="M0 8H30M24 2L32 8L24 14" stroke="#f0c020" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+
+          <!-- Step 07: Judgement -->
+          <div class="flow-step">
+            <div class="stop-icon-placeholder"></div>
+            <div class="step-circle judgement">
+              <svg class="step-icon-svg" viewBox="0 0 64 64" fill="none">
+                <path d="M6 32 Q20 8 32 32 Q44 56 58 32" stroke="white" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <circle cx="32" cy="32" r="5" fill="white" opacity="0.9"/>
+              </svg>
+            </div>
+            <div class="step-label"><span class="step-num">07</span>JUDGEMENT</div>
+          </div>
+
+        </div><!-- /flow-row -->
+
+        <!-- PARAMS GRID (4 columns for steps 03-06) -->
+        <div class="params-grid">
+          <!-- Col 03: Checking -->
+          <div class="param-col">
+            <div class="param-field">
+              <div class="param-field-label">MAX (Bar)</div>
+              <div class="param-field-value">5.0</div>
+            </div>
+            <div class="param-field">
+              <div class="param-field-label">MIN (Bar)</div>
+              <div class="param-field-value">4.0</div>
+            </div>
+            <div class="param-field">
+              <div class="param-field-label">RESULT (Bar)</div>
+              <div class="param-field-value result">4.5</div>
+            </div>
+          </div>
+          <!-- Col 04: Cylinder Down -->
+          <div class="param-col">
+            <div class="param-field">
+              <div class="param-field-label">MAX (Bar)</div>
+              <div class="param-field-value">4.0</div>
+            </div>
+            <div class="param-field">
+              <div class="param-field-label">MIN (Bar)</div>
+              <div class="param-field-value">3.0</div>
+            </div>
+            <div class="param-field">
+              <div class="param-field-label">RESULT (Bar)</div>
+              <div class="param-field-value result">3.5</div>
+            </div>
+          </div>
+          <!-- Col 05: Air Leak Test -->
+          <div class="param-col">
+            <div class="param-field">
+              <div class="param-field-label">MAX (Bar)</div>
+              <div class="param-field-value">4.0</div>
+            </div>
+            <div class="param-field">
+              <div class="param-field-label">MIN (Bar)</div>
+              <div class="param-field-value">3.8</div>
+            </div>
+            <div class="param-field">
+              <div class="param-field-label">RESULT (Bar)</div>
+              <div class="param-field-value result">3.9</div>
+            </div>
+          </div>
+          <!-- Col 06: Cylinder Up -->
+          <div class="param-col">
+            <div class="param-field">
+              <div class="param-field-label">MAX (Bar)</div>
+              <div class="param-field-value">4.0</div>
+            </div>
+            <div class="param-field">
+              <div class="param-field-label">MIN (Bar)</div>
+              <div class="param-field-value">3.0</div>
+            </div>
+            <div class="param-field">
+              <div class="param-field-label">RESULT (Bar)</div>
+              <div class="param-field-value result">3.5</div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /process-area -->
+
+      <!-- FOOTER -->
+      <div class="footer">
+        <button class="reset-btn" onclick="resetMachine()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#000">
+            <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+          </svg>
+          RESET
+        </button>
+
+        <div class="status-box">
+          <span class="status-label">STATUS :</span>
+          <span class="status-value" id="status-val">READY</span>
+        </div>
+
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="progress-fill"></div>
+        </div>
+
+        <div class="progress-pct" id="progress-pct">53%</div>
+      </div>
+
+    </div><!-- /main-panel -->
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-card">
+        <div class="sidebar-title">MACHINE INFORMATION</div>
+        <div class="sidebar-fields">
+
+          <div class="sf-group">
+            <div class="sf-label">EMP.ID :</div>
+            <input class="sf-input" type="text" value="1" id="emp-id">
+          </div>
+
+          <div class="sf-group">
+            <div class="sf-label">MODEL :</div>
+            <input class="sf-input" type="text" value="1" id="model">
+          </div>
+
+          <div class="sf-group">
+            <div class="sf-label">MES SYSTEM :</div>
+            <div class="mes-toggle">
+              <button class="mes-btn on active" id="mes-on" onclick="toggleMes(true)">ON</button>
+              <button class="mes-btn off inactive" id="mes-off" onclick="toggleMes(false)">OFF</button>
+            </div>
+          </div>
+
+          <div class="sf-group">
+            <div class="sf-label">INSPECTION ITEMS :</div>
+            <div class="inspection-area" id="inspection-items"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /body -->
+</div><!-- /app -->
+
+<script>
+  // ── CLOCK ──
+  function updateClock() {
+    const now = new Date();
+    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const d = String(now.getDate()).padStart(2,'0');
+    const m = months[now.getMonth()];
+    const y = now.getFullYear();
+    const h = String(now.getHours()).padStart(2,'0');
+    const mn = String(now.getMinutes()).padStart(2,'0');
+    const s = String(now.getSeconds()).padStart(2,'0');
+    document.getElementById('hdate').textContent = `${d} ${m} ${y}`;
+    document.getElementById('htime').textContent = `${h}:${mn}:${s}`;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ── MES TOGGLE ──
+  function toggleMes(on) {
+    const onBtn = document.getElementById('mes-on');
+    const offBtn = document.getElementById('mes-off');
+    if (on) {
+      onBtn.classList.replace('inactive','active');
+      offBtn.classList.replace('active','inactive');
+    } else {
+      offBtn.classList.replace('inactive','active');
+      onBtn.classList.replace('active','inactive');
+    }
+  }
+
+  // ── RESET ──
+  function resetMachine() {
+    const sv = document.getElementById('status-val');
+    const pf = document.getElementById('progress-fill');
+    const pp = document.getElementById('progress-pct');
+    sv.textContent = 'RESETTING...';
+    sv.style.color = '#ffaa00';
+    let p = 53;
+    const interval = setInterval(() => {
+      p = Math.max(0, p - 4);
+      pf.style.width = p + '%';
+      pp.textContent = p + '%';
+      if (p === 0) {
+        clearInterval(interval);
+        sv.textContent = 'READY';
+        sv.style.color = 'var(--green-ok)';
+        // animate back up
+        setTimeout(() => {
+          let q = 0;
+          const up = setInterval(() => {
+            q = Math.min(53, q + 2);
+            pf.style.width = q + '%';
+            pp.textContent = q + '%';
+            if (q >= 53) clearInterval(up);
+          }, 30);
+        }, 400);
+      }
+    }, 40);
+  }
+
+  // ── RESULT VALUE BLINK ──
+  const results = document.querySelectorAll('.param-field-value.result');
+  setInterval(() => {
+    results.forEach(el => {
+      el.style.opacity = el.style.opacity === '0.4' ? '1' : '0.4';
+    });
+  }, 900);
+  setTimeout(() => {
+    results.forEach(el => el.style.opacity = '1');
+    setInterval(() => {}, 0);
+  }, 900);
+</script>
+
+</body>
+</html>
